@@ -1,7 +1,7 @@
 import express from "express";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
-import { createServer, supportBridgeEnabled } from "./server.js";
+import { createServer } from "./server.js";
 import {
   authEnabled,
   authorizationServerMetadataUrl,
@@ -37,7 +37,6 @@ app.get("/", (_req, res) => {
     status: "ok",
     mcpEndpoint: "/mcp",
     authEnabled,
-    supportBridgeEnabled,
   });
 });
 
@@ -120,12 +119,12 @@ app.use("/mcp", async (req, res, next) => {
 // is created per request, so there is no session state to manage across
 // Render's ephemeral/scaled instances.
 app.post("/mcp", async (req, res) => {
-  const { server, support } = createServer();
+  const server = createServer();
   let closed = false;
   const close = async () => {
     if (closed) return;
     closed = true;
-    await Promise.allSettled([transport.close(), server.close(), support?.close()]);
+    await Promise.allSettled([transport.close(), server.close()]);
   };
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: undefined,

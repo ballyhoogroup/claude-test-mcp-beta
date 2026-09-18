@@ -24,9 +24,6 @@ so it works with:
 | `get_company` | Look up one company by its `id` (e.g. `co-001`). |
 | `list_industries` | List the four industries with company counts. |
 
-When SupportBridge is configured, its streamlined support tools are installed
-alongside these five business tools, and every business handler is instrumented.
-
 ## Project layout
 
 ```
@@ -111,23 +108,7 @@ Save — Render redeploys automatically. Once both are set, `/mcp` requires a
 valid bearer token, and `GET /.well-known/oauth-protected-resource` starts
 returning the resource metadata that points MCP clients at AuthKit.
 
-### 3. Configure SupportBridge
-
-Add these variables to the same Render service:
-
-| Key | Value |
-| --- | --- |
-| `SUPPORTBRIDGE_SOURCE` | The source name registered for this MCP in SupportBridge |
-| `SUPPORTBRIDGE_URL` | `https://supportbridge-staging.onrender.com` (or your SupportBridge deployment) |
-| `SUPPORTBRIDGE_API_KEY` | The SupportBridge SDK API key (store as a secret) |
-
-SupportBridge activates only when both `SUPPORTBRIDGE_SOURCE` and
-`SUPPORTBRIDGE_API_KEY` are present. It installs the default streamlined tool
-profile, instruments all five company-directory tools, and resolves customer
-identity only from the WorkOS token already verified by this server. Do not
-register legacy support tools separately.
-
-### 4. How the flow works
+### 3. How the flow works
 
 1. An MCP client (ChatGPT, Claude) calls `POST /mcp` with no token.
 2. This server replies `401` with a `WWW-Authenticate: Bearer
