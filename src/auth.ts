@@ -1,5 +1,6 @@
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
+import type { SupportIdentity } from "@supportbridge/sdk";
 
 /**
  * OAuth 2.1 resource-server support for this MCP server, using WorkOS AuthKit
@@ -102,4 +103,22 @@ export async function verifyBearerToken(authorizationHeader: string | undefined)
   } catch {
     return { ok: false, reason: "invalid_token" };
   }
+}
+
+/** Resolve SupportBridge identity only from claims in a verified MCP access token. */
+export function identifyAuthenticatedUser(context?: unknown): SupportIdentity | undefined {
+  const authInfo = (context as { authInfo?: AuthInfo } | undefined)?.authInfo;
+  const extra = authInfo?.extra;
+  const userId = stringClaim(extra?.subject);
+  if (!userId) {
+    return undefined;
+  }
+
+  return {
+    userId,
+    accountId: stringClaim(extra?.accountId),
+    workspaceId: stringClaim(extra?.workspaceId),
+    organizationId: stringClaim(extra?.organizationId),
+    sessionId: stringClaim(extra?.sessionId),
+  };
 }
