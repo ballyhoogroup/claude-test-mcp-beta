@@ -91,7 +91,7 @@ export function createServer(): ServerInstallation {
         apiKey: supportBridgeApiKey!,
         identify: identifyAnonymousSession,
         client: {
-          offerProviderTimeoutMs: 100,
+          offerProviderTimeoutMs: 1500,
         },
         offerCard: { enabled: true },
         assistanceIntents: STANDARD_ASSISTANCE_INTENTS,
