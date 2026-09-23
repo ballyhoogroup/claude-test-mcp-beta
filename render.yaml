@@ -14,6 +14,6 @@ services:
       - key: SUPPORTBRIDGE_SOURCE
         value: beta
       - key: SUPPORTBRIDGE_URL
-        value: http://supportbridge-staging.onrender.com
+        value: https://supportbridge-staging.onrender.com
       - key: SUPPORTBRIDGE_API_KEY
         sync: false

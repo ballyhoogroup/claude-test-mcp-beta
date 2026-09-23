@@ -88,6 +88,7 @@ export function createServer(): ServerInstallation {
         baseUrl: process.env.SUPPORTBRIDGE_URL!,
         apiKey: supportBridgeApiKey!,
         identify: identifyAuthenticatedUser,
+        offerCard: { enabled: true },
       })
     : undefined;
 
