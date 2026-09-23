@@ -5,7 +5,7 @@ import {
   type SupportBridgeInstallation,
 } from "@supportbridge/sdk";
 import { z } from "zod";
-import { identifyAuthenticatedUser } from "./auth.js";
+import { identifyAuthenticatedUser } from "./identity.js";
 import { companies, type Company, type Industry } from "./data.js";
 
 const INDUSTRIES: Industry[] = ["fintech", "agtech", "martech", "femtech"];
