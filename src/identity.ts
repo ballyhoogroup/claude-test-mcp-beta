@@ -1,29 +1,27 @@
-import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
+import { createHash } from "node:crypto";
 import type { SupportIdentity } from "@supportbridge/sdk";
 
-function stringClaim(value: unknown): string | undefined {
-  return typeof value === "string" && value.length > 0 ? value : undefined;
-}
+type McpRequestContext = { sessionId?: unknown };
 
 /**
- * Resolve a SupportBridge identity only when a trusted upstream has supplied
- * verified MCP auth context. This server does not authenticate requests, so
- * ordinary public calls remain anonymous instead of receiving a fabricated
- * identity.
+ * Hash the server-generated MCP transport session before it leaves this service.
+ * The namespace prefix prevents this digest from being reused as a generic hash
+ * of the transport id elsewhere.
  */
-export function identifyAuthenticatedUser(context?: unknown): SupportIdentity | undefined {
-  const authInfo = (context as { authInfo?: AuthInfo } | undefined)?.authInfo;
-  const extra = authInfo?.extra;
-  const userId = stringClaim(extra?.subject);
-  if (!userId) {
+export function opaqueSessionId(rawSessionId: string): string {
+  return createHash("sha256")
+    .update("pitch-fork/supportbridge-session/v1\0", "utf8")
+    .update(rawSessionId, "utf8")
+    .digest("hex");
+}
+
+/** Resolve the minimal anonymous identity from trusted MCP transport context. */
+export function identifyAnonymousSession(context?: unknown): SupportIdentity | undefined {
+  const rawSessionId = (context as McpRequestContext | undefined)?.sessionId;
+  if (typeof rawSessionId !== "string" || rawSessionId.length === 0) {
     return undefined;
   }
 
-  return {
-    userId,
-    accountId: stringClaim(extra?.accountId),
-    workspaceId: stringClaim(extra?.workspaceId),
-    organizationId: stringClaim(extra?.organizationId),
-    sessionId: stringClaim(extra?.sessionId),
-  };
+  const sessionId = opaqueSessionId(rawSessionId);
+  return { userId: `anonymous:${sessionId}`, sessionId };
 }

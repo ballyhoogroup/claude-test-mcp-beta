@@ -5,7 +5,7 @@ import {
   type SupportBridgeInstallation,
 } from "@supportbridge/sdk";
 import { z } from "zod";
-import { identifyAuthenticatedUser } from "./identity.js";
+import { identifyAnonymousSession } from "./identity.js";
 import { companies, type Company, type Industry } from "./data.js";
 
 const INDUSTRIES: Industry[] = ["fintech", "agtech", "martech", "femtech"];
@@ -51,7 +51,7 @@ function matchesQuery(c: Company, query: string): boolean {
 
 /**
  * Builds a fresh McpServer instance with every tool registered.
- * A new instance is created per request in stateless HTTP mode (see index.ts).
+ * A new instance is created for each stateful HTTP transport session (see app.ts).
  */
 export interface ServerInstallation {
   server: McpServer;
@@ -87,7 +87,7 @@ export function createServer(): ServerInstallation {
         source: supportBridgeSource!,
         baseUrl: process.env.SUPPORTBRIDGE_URL!,
         apiKey: supportBridgeApiKey!,
-        identify: identifyAuthenticatedUser,
+        identify: identifyAnonymousSession,
         offerCard: { enabled: true },
       })
     : undefined;

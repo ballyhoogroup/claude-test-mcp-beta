@@ -74,8 +74,11 @@ This repo includes a [`render.yaml`](./render.yaml) blueprint.
 
 ## Authentication
 
-This MCP server is intentionally public. The `/mcp` endpoint does not require
-OAuth, bearer tokens, or API keys from MCP clients.
+WorkOS AuthKit OAuth is optional. When `AUTHKIT_DOMAIN` and `MCP_RESOURCE_URL`
+are configured, `/mcp` requires a valid bearer token; otherwise the beta can be
+used without authentication. SupportBridge identity does not depend on WorkOS:
+it is derived from the server-generated MCP transport session and the raw
+session id is hashed before it leaves this service.
 
 ## Configure SupportBridge
 
@@ -89,9 +92,10 @@ Add these variables to the same Render service:
 
 SupportBridge activates only when both `SUPPORTBRIDGE_SOURCE` and
 `SUPPORTBRIDGE_API_KEY` are present. It installs the default streamlined tool
-profile and instruments all five company-directory tools. Public calls are
-reported without a fabricated customer identity. Do not register legacy
-support tools separately.
+profile, registers the read-only `show_support_offer` display tool, and
+instruments all five company-directory tools. Calls in one MCP connection are
+reported with the same minimal anonymous identity; different connections use
+different identities. Do not register legacy support tools separately.
 
 ## Connecting clients
 
@@ -101,9 +105,9 @@ support tools separately.
    MCP server).
 2. Enter your Render URL's `/mcp` endpoint, e.g.
    `https://<your-service-name>.onrender.com/mcp`.
-3. Choose **No authentication**. No client id, client secret, or OAuth flow is
-   required.
-4. ChatGPT will discover the `search` and `fetch` tools automatically.
+3. Choose OAuth/automatic discovery when AuthKit is configured, or **No
+   authentication** for the public beta configuration.
+4. ChatGPT will discover `search` and `fetch` automatically.
 
 ### Claude Desktop
 
@@ -126,12 +130,11 @@ Claude Desktop only supports local/stdio servers, use the
 
 ### Any other MCP client
 
-Point any client that supports the Streamable HTTP transport at the public
-`/mcp` URL. No authentication is required.
+Point any client that supports the Streamable HTTP transport at the `/mcp` URL.
+Complete the WorkOS authorization flow only when AuthKit is configured.
 
 ## Notes
 
-- The server is stateless: each HTTP request creates a fresh MCP server +
-  transport instance (`sessionIdGenerator: undefined`), which keeps it simple
-  to run on Render's free tier without sticky sessions.
+- The server keeps one MCP server + transport instance per connection and
+  removes it when the client sends the MCP session teardown request.
 - Pitch-Fork provides searchable company profiles and structured company information.

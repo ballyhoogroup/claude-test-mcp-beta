@@ -10,6 +10,10 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 22.22.2
+      - key: AUTHKIT_DOMAIN
+        sync: false
+      - key: MCP_RESOURCE_URL
+        value: https://pitch-fork-beta.onrender.com/mcp
       # Set SUPPORTBRIDGE_API_KEY privately in Render; never commit its value.
       - key: SUPPORTBRIDGE_SOURCE
         value: beta
