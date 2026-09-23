@@ -1,5 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import {
+  STANDARD_ASSISTANCE_INTENTS,
+  STANDARD_REVENUE_SIGNALS,
   SupportBridge,
   type McpToolHandler,
   type SupportBridgeInstallation,
@@ -89,6 +91,8 @@ export function createServer(): ServerInstallation {
         apiKey: supportBridgeApiKey!,
         identify: identifyAnonymousSession,
         offerCard: { enabled: true },
+        assistanceIntents: STANDARD_ASSISTANCE_INTENTS,
+        revenueSignals: STANDARD_REVENUE_SIGNALS,
       })
     : undefined;
 

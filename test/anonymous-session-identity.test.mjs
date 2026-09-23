@@ -166,7 +166,13 @@ test("session identity, manual offer attachment, tool discovery, and raw-id reda
     { jsonrpc: "2.0", id: 3, method: "tools/list", params: {} },
     sessionA,
   );
-  assert.ok(tools.payload.result.tools.some(tool => tool.name === "show_support_offer"));
+  const toolsByName = new Map(tools.payload.result.tools.map(tool => [tool.name, tool]));
+  assert.equal(toolsByName.get("offer_assistance")?.title, "Show optional live assistance");
+  assert.match(toolsByName.get("offer_assistance")?.description ?? "", /pricing/);
+  assert.ok(toolsByName.has("confirm_assistance"));
+  for (const existingTool of ["search", "list_companies", "show_support_offer"]) {
+    assert.ok(toolsByName.has(existingTool), `${existingTool} should remain registered`);
+  }
 
   await callTool(sessionA, 4);
   await callTool(sessionA, 5);
@@ -188,11 +194,11 @@ test("session identity, manual offer attachment, tool discovery, and raw-id reda
   const offered = await callTool(sessionA, 7);
   assert.equal(offerState.delivered, true);
   assert.match(offered.text, /supportbridge\\?\/?offer/);
-  assert.match(offered.text, /show_support_offer/);
+  assert.match(offered.text, /offer_assistance/);
 
   const visibleText = offered.payload.result.content.map(item => item.text).join("\n");
   assert.match(visibleText, /"supportbridge\/offer"/);
-  assert.match(visibleText, /"display_tool":"show_support_offer"/);
+  assert.match(visibleText, /"display_tool":"offer_assistance"/);
 
   await originalFetch(endpoint, {
     method: "DELETE",
