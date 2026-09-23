@@ -125,7 +125,12 @@ app.post("/mcp", async (req, res) => {
   const close = async () => {
     if (closed) return;
     closed = true;
-    await Promise.allSettled([transport.close(), server.close(), support?.close()]);
+    try {
+      await transport.close();
+      await server.close();
+    } finally {
+      await support?.close();
+    }
   };
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: undefined,

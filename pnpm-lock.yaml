@@ -12,8 +12,8 @@ importers:
         specifier: ^1.30.0
         version: 1.30.0(zod@3.25.76)
       '@supportbridge/sdk':
-        specifier: file:vendor/supportbridge-sdk-0.11.1.tgz
-        version: file:vendor/supportbridge-sdk-0.11.1.tgz(@modelcontextprotocol/sdk@1.30.0(zod@3.25.76))
+        specifier: 0.10.2
+        version: 0.10.2(@modelcontextprotocol/sdk@1.30.0(zod@3.25.76))
       express:
         specifier: ^4.21.2
         version: 4.22.3
@@ -228,9 +228,8 @@ packages:
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
 
-  '@supportbridge/sdk@file:vendor/supportbridge-sdk-0.11.1.tgz':
-    resolution: {integrity: sha512-lDQ7w61vvmfHzo/CqvVFqTVg18nv6lKBqIVusK+vZJ0/TZfbRV5xzzvOi+791dhRX6YXUkXfhSR4yP7EVjOCCA==, tarball: file:vendor/supportbridge-sdk-0.11.1.tgz}
-    version: 0.11.1
+  '@supportbridge/sdk@0.10.2':
+    resolution: {integrity: sha512-3TuIxeGPmAmGXAGNIoIO7csulzanToqxn9G3OgHgWCCL7PNJTOCrILgsEi6qrZmh2/B+4ZMC/Q1KJ+G++pp6JQ==}
     engines: {node: '>=20'}
     hasBin: true
     peerDependencies:
@@ -866,7 +865,7 @@ snapshots:
 
   '@standard-schema/spec@1.1.0': {}
 
-  '@supportbridge/sdk@file:vendor/supportbridge-sdk-0.11.1.tgz(@modelcontextprotocol/sdk@1.30.0(zod@3.25.76))':
+  '@supportbridge/sdk@0.10.2(@modelcontextprotocol/sdk@1.30.0(zod@3.25.76))':
     dependencies:
       '@modelcontextprotocol/ext-apps': 1.7.5(@modelcontextprotocol/sdk@1.30.0(zod@3.25.76))(zod@3.25.76)
       '@modelcontextprotocol/sdk': 1.30.0(zod@3.25.76)

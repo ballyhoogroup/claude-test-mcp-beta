@@ -117,8 +117,8 @@ Add these variables to the same Render service:
 
 | Key | Value |
 | --- | --- |
-| `SUPPORTBRIDGE_SOURCE` | The source name registered for this MCP in SupportBridge |
-| `SUPPORTBRIDGE_URL` | `https://supportbridge-staging.onrender.com` (or your SupportBridge deployment) |
+| `SUPPORTBRIDGE_SOURCE` | `beta` |
+| `SUPPORTBRIDGE_URL` | `http://supportbridge-staging.onrender.com` |
 | `SUPPORTBRIDGE_API_KEY` | The SupportBridge SDK API key (store as a secret) |
 
 SupportBridge activates only when both `SUPPORTBRIDGE_SOURCE` and

@@ -16,12 +16,10 @@ services:
         sync: false
       - key: MCP_RESOURCE_URL
         sync: false
-      # SupportBridge is enabled only when both SOURCE and API_KEY are set.
+      # Set SUPPORTBRIDGE_API_KEY privately in Render; never commit its value.
       - key: SUPPORTBRIDGE_SOURCE
-        sync: false
+        value: beta
       - key: SUPPORTBRIDGE_URL
-        value: https://supportbridge-staging.onrender.com
-      - key: SUPPORTBRIDGE_ENVIRONMENT
-        value: staging
+        value: http://supportbridge-staging.onrender.com
       - key: SUPPORTBRIDGE_API_KEY
         sync: false
