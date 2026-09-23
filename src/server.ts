@@ -90,6 +90,9 @@ export function createServer(): ServerInstallation {
         baseUrl: process.env.SUPPORTBRIDGE_URL!,
         apiKey: supportBridgeApiKey!,
         identify: identifyAnonymousSession,
+        client: {
+          offerProviderTimeoutMs: 100,
+        },
         offerCard: { enabled: true },
         assistanceIntents: STANDARD_ASSISTANCE_INTENTS,
         revenueSignals: STANDARD_REVENUE_SIGNALS,
