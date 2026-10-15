@@ -1,22 +1,11 @@
 import express from "express";
 import { randomUUID } from "node:crypto";
-import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
-import {
-  authEnabled,
-  authorizationServerMetadataUrl,
-  protectedResourceMetadata,
-  protectedResourceMetadataUrl,
-  type TokenCheck,
-  verifyBearerToken,
-} from "./auth.js";
-import { createServer, supportBridgeEnabled, type ServerInstallation } from "./server.js";
+import { createServer, type ServerInstallation } from "./server.js";
 
 export interface AppDependencies {
-  verifyToken?: (authorizationHeader: string | undefined) => Promise<TokenCheck>;
   serverFactory?: () => ServerInstallation;
-  authenticationConfigured?: boolean;
 }
 
 interface SessionInstallation extends ServerInstallation {
@@ -25,9 +14,7 @@ interface SessionInstallation extends ServerInstallation {
 
 export function createApp(dependencies: AppDependencies = {}) {
   const app = express();
-  const verifyToken = dependencies.verifyToken ?? verifyBearerToken;
   const serverFactory = dependencies.serverFactory ?? createServer;
-  const authenticationConfigured = dependencies.authenticationConfigured ?? authEnabled;
   const sessions = new Map<string, SessionInstallation>();
 
   app.use(express.json());
@@ -51,68 +38,10 @@ export function createApp(dependencies: AppDependencies = {}) {
       name: "Pitch-Fork",
       status: "ok",
       mcpEndpoint: "/mcp",
-      authEnabled: authenticationConfigured,
-      supportBridgeEnabled,
+      authEnabled: false,
     });
   });
   app.get("/healthz", (_req, res) => res.status(200).send("ok"));
-
-  app.get(
-    ["/.well-known/oauth-protected-resource", "/.well-known/oauth-protected-resource/mcp"],
-    (_req, res) => {
-      if (!authenticationConfigured) {
-        res.status(404).json({ error: "oauth_not_configured" });
-        return;
-      }
-      res.set("Cache-Control", "public, max-age=300");
-      res.json(protectedResourceMetadata());
-    },
-  );
-
-  app.get("/.well-known/oauth-authorization-server", async (_req, res) => {
-    if (!authenticationConfigured) {
-      res.status(404).json({ error: "oauth_not_configured" });
-      return;
-    }
-    try {
-      const upstream = await fetch(authorizationServerMetadataUrl());
-      if (!upstream.ok) throw new Error(`AuthKit metadata request failed: ${upstream.status}`);
-      res.set("Cache-Control", "public, max-age=300");
-      res.json(await upstream.json());
-    } catch (error) {
-      console.error("Error fetching AuthKit authorization server metadata:", error);
-      res.status(502).json({ error: "authorization_server_metadata_unavailable" });
-    }
-  });
-
-  app.use("/mcp", async (req, res, next) => {
-    if (!authenticationConfigured) {
-      next();
-      return;
-    }
-    const tokenCheck = await verifyToken(req.header("authorization"));
-    if (!tokenCheck.ok) {
-      res
-        .status(401)
-        .set(
-          "WWW-Authenticate",
-          [
-            'Bearer error="unauthorized"',
-            'error_description="Authorization needed"',
-            `resource_metadata="${protectedResourceMetadataUrl()}"`,
-          ].join(", "),
-        )
-        .json({
-          jsonrpc: "2.0",
-          error: { code: -32001, message: `Unauthorized: ${tokenCheck.reason}` },
-          id: null,
-        });
-      return;
-    }
-
-    (req as typeof req & { auth: AuthInfo }).auth = tokenCheck.authInfo;
-    next();
-  });
 
   app.post("/mcp", async (req, res) => {
     try {
@@ -120,19 +49,18 @@ export function createApp(dependencies: AppDependencies = {}) {
       let installation = requestedSessionId ? sessions.get(requestedSessionId) : undefined;
 
       if (!installation && !requestedSessionId && isInitializeRequest(req.body)) {
-        const { server, support } = serverFactory();
+        const { server } = serverFactory();
         const transport = new StreamableHTTPServerTransport({
           sessionIdGenerator: randomUUID,
           onsessioninitialized: sessionId => {
-            sessions.set(sessionId, { server, support, transport });
+            sessions.set(sessionId, { server, transport });
           },
         });
         transport.onclose = () => {
           const sessionId = transport.sessionId;
           if (sessionId) sessions.delete(sessionId);
-          void support?.close();
         };
-        installation = { server, support, transport };
+        installation = { server, transport };
         await server.connect(transport);
       }
 

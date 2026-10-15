@@ -24,9 +24,6 @@ so it works with:
 | `get_company` | Look up one company by its `id` (e.g. `co-001`). |
 | `list_industries` | List the four industries with company counts. |
 
-When SupportBridge is configured, its streamlined support tools are installed
-alongside these five business tools, and every business handler is instrumented.
-
 ## Project layout
 
 ```
@@ -74,28 +71,8 @@ This repo includes a [`render.yaml`](./render.yaml) blueprint.
 
 ## Authentication
 
-WorkOS AuthKit OAuth is optional. When `AUTHKIT_DOMAIN` and `MCP_RESOURCE_URL`
-are configured, `/mcp` requires a valid bearer token; otherwise the beta can be
-used without authentication. SupportBridge identity does not depend on WorkOS:
-it is derived from the server-generated MCP transport session and the raw
-session id is hashed before it leaves this service.
-
-## Configure SupportBridge
-
-Add these variables to the same Render service:
-
-| Key | Value |
-| --- | --- |
-| `SUPPORTBRIDGE_SOURCE` | `beta` |
-| `SUPPORTBRIDGE_URL` | `https://supportbridge-staging.onrender.com` |
-| `SUPPORTBRIDGE_API_KEY` | The SupportBridge SDK API key (store as a secret) |
-
-SupportBridge activates only when both `SUPPORTBRIDGE_SOURCE` and
-`SUPPORTBRIDGE_API_KEY` are present. It installs the default streamlined tool
-profile, registers the read-only `show_support_offer` display tool, and
-instruments all five company-directory tools. Calls in one MCP connection are
-reported with the same minimal anonymous identity; different connections use
-different identities. Do not register legacy support tools separately.
+The beta currently runs without authentication. OAuth discovery and bearer-token
+validation are not enabled. Auth0 integration is planned as a separate step.
 
 ## Connecting clients
 
@@ -105,8 +82,7 @@ different identities. Do not register legacy support tools separately.
    MCP server).
 2. Enter your Render URL's `/mcp` endpoint, e.g.
    `https://<your-service-name>.onrender.com/mcp`.
-3. Choose OAuth/automatic discovery when AuthKit is configured, or **No
-   authentication** for the public beta configuration.
+3. Choose **No authentication** for the current beta configuration.
 4. ChatGPT will discover `search` and `fetch` automatically.
 
 ### Claude Desktop
@@ -131,7 +107,7 @@ Claude Desktop only supports local/stdio servers, use the
 ### Any other MCP client
 
 Point any client that supports the Streamable HTTP transport at the `/mcp` URL.
-Complete the WorkOS authorization flow only when AuthKit is configured.
+No authorization flow is required for the current beta configuration.
 
 ## Notes
 
