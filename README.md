@@ -88,7 +88,7 @@ The Post Login Action supplies namespaced claims
 `https://pitch-fork-beta.onrender.com/mcp/email_verified`. The server maps these
 from the validated token to `authInfo.extra.email` and `email_verified`, preserving
 verification only when the claim is boolean true. The Auth0 subject is retained
-as `extra.sub` and `extra.subject`. Within is not installed yet.
+as `extra.sub` and `extra.subject`. Within reads the authenticated tool context directly; no custom identity resolver is supplied.
 New tools use the same server-wide `access:mcp` requirement.
 
 ## Connecting clients
@@ -131,3 +131,29 @@ Complete the Auth0 authorization flow and request the `access:mcp` scope.
 - The server keeps one MCP server + transport instance per connection and
   removes it when the client sends the MCP session teardown request.
 - Pitch-Fork provides searchable company profiles and structured company information.
+
+## Within integration
+
+The three SDK modules are vendored without modifications from
+`C:/Users/pltow/supportbridge-sdk-fork/product/src` into
+`src/within/sdk/index.mjs`, `src/within/activity.mjs`, and `src/within/intents.mjs`.
+The TypeScript build copies the JavaScript modules into the same layout under `dist`.
+
+Set `SUPPORTBRIDGE_URL=https://app.getwith.in` and keep
+`SUPPORTBRIDGE_API_KEY` as a secret in Render. Do not use the MCP server's own URL
+or a loopback URL for this hosted Within service. The SDK requires an API key.
+All five company tools use `support.wrapTool`; the SDK registers its own support
+tools. Auth0 token verification and the authenticated extra context are unchanged.
+
+### Current supplied SDK limitations
+
+The integration passes `privacy: { captureArguments: false }`, but this supplied
+SDK does not implement that option: activity reports still include argument-derived
+tokens, summaries, and previews. Do not treat the option as effective until the
+upstream SDK implements it. The vendored files are deliberately unchanged.
+
+This SDK also prefers a verified email as its customer user ID, falling back to
+`extra.authInfo.extra.sub` when no verified email is present. A subject-only call
+was verified to produce an Auth0 subject, not anonymous. Email claims and their
+verification status remain intact. Live console verification requires a real sign-in
+and configured Within API key.

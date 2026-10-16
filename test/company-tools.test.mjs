@@ -2,6 +2,16 @@ import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 
 const originalFetch = globalThis.fetch;
+const activity = [];
+process.env.SUPPORTBRIDGE_API_KEY = "test-only-key";
+process.env.SUPPORTBRIDGE_URL = "https://within.test";
+globalThis.fetch = async (input, init) => {
+  if (String(input).startsWith("https://within.test/")) {
+    if (String(input).endsWith("/v1/activity")) activity.push(JSON.parse(init.body));
+    return Response.json({});
+  }
+  return originalFetch(input, init);
+};
 
 const { createApp } = await import("../dist/app.js");
 
@@ -76,7 +86,7 @@ async function callTool(sessionId, id) {
   );
 }
 
-test("company tools remain available after SDK removal", async () => {
+test("Within tools register once and business tools retain Auth0 subject", async () => {
   for (const path of ["/.well-known/oauth-protected-resource", "/.well-known/oauth-protected-resource/mcp"]) {
     const response = await originalFetch(new URL(path, endpoint));
     assert.equal(response.status, 200);
@@ -90,13 +100,26 @@ test("company tools remain available after SDK removal", async () => {
     const tools = await mcpRequest(
       { jsonrpc: "2.0", id: 2, method: "tools/list", params: {} }, session,
     );
-    assert.deepEqual(tools.payload.result.tools.map(tool => tool.name).sort(),
-      ["fetch", "get_company", "list_companies", "list_industries", "search"]);
+    const names = tools.payload.result.tools.map(tool => tool.name);
+    for (const name of ["fetch", "get_company", "list_companies", "list_industries", "search",
+      "offer_assistance", "confirm_assistance", "request_assistance", "decline_assistance",
+      "file_escalation", "decline_escalation", "support_get_messages", "support_send_message",
+      "support_end_session", "support_get_offer", "get_vendor_answer", "talk_to_vendor_agent"]) {
+      assert.equal(names.filter(value => value === name).length, 1, name);
+    }
     const result = await callTool(session, 3);
     assert.equal(result.payload.result.isError, undefined);
     const industries = JSON.parse(result.payload.result.content[0].text);
     assert.equal(industries.length, 4);
     assert.ok(industries.every(industry => industry.count > 0));
+    assert.equal(activity[0].customerUserId, "auth0|test");
+    assert.equal(activity[0].source, "vendor-mcp");
+    for (const [name,args] of [["search",{query:"fintech"}],["fetch",{id:"co-001"}],["get_company",{id:"co-001"}],["list_companies",{limit:1}]]) {
+      const called=await mcpRequest({jsonrpc:"2.0",id:name,method:"tools/call",params:{name,arguments:args}},session);
+      assert.equal(called.payload.result.isError, undefined);
+    }
+    assert.deepEqual(activity.map(row=>row.toolName).sort(),["fetch","get_company","list_companies","list_industries","search"]);
+    assert.ok(activity.every(row=>row.customerUserId === "auth0|test"));
   } finally {
     const closed = await originalFetch(endpoint, {
       method: "DELETE",

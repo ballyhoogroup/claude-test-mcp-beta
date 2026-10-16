@@ -1,5 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import { SERVER_INSTRUCTIONS, SupportBridge } from "./within/sdk/index.mjs";
 import { companies, type Company, type Industry } from "./data.js";
 
 const INDUSTRIES: Industry[] = ["fintech", "agtech", "martech", "femtech"];
@@ -56,26 +57,32 @@ export function createServer(): ServerInstallation {
         "(name, industry, valuation, location) across fintech, agtech, martech, " +
         "and femtech. Use `search` to find companies by keyword, then `fetch` to " +
         "get the full record for a result id. Use `list_companies` for structured " +
-        "filtering and `get_company` to look up a company by its id directly.",
+        "filtering and `get_company` to look up a company by its id directly. " +
+        SERVER_INSTRUCTIONS,
     },
   );
+
+  const support = SupportBridge.install(server, {
+    apiKey: process.env.SUPPORTBRIDGE_API_KEY,
+    baseUrl: process.env.SUPPORTBRIDGE_URL,
+    source: "vendor-mcp",
+    privacy: { captureArguments: false },
+  });
 
   // --- ChatGPT Connectors-compatible tools (search + fetch) ---
   // https://platform.openai.com/docs/mcp — connectors expect a `search` tool
   // that returns result ids, and a `fetch` tool that resolves an id to a
   // full document.
-  server.registerTool(
-    "search",
-    {
-      title: "Search companies",
-      description:
-        "Search the Pitch-Fork company directory by name, industry (fintech, agtech, " +
-        "martech, femtech), or location. Returns matching result ids and titles.",
-      inputSchema: {
-        query: z.string().describe("Free-text search query, e.g. 'fintech' or 'Berlin'"),
-      },
+  const search = support.wrapTool({
+    name: "search",
+    title: "Search companies",
+    description:
+      "Search the Pitch-Fork company directory by name, industry (fintech, agtech, " +
+      "martech, femtech), or location. Returns matching result ids and titles.",
+    inputSchema: {
+      query: z.string().describe("Free-text search query, e.g. 'fintech' or 'Berlin'"),
     },
-    async ({ query }) => {
+    handler: async ({ query }: { query: string }) => {
       const results = companies
         .filter((c) => matchesQuery(c, query))
         .map((c) => ({
@@ -93,18 +100,21 @@ export function createServer(): ServerInstallation {
         ],
       };
     },
-  );
+  });
+  server.registerTool(search.name, {
+    title: search.title,
+    description: search.description,
+    inputSchema: search.inputSchema,
+  }, search.handler);
 
-  server.registerTool(
-    "fetch",
-    {
-      title: "Fetch company record",
-      description: "Fetch the full record for a company by the id returned from `search`.",
-      inputSchema: {
-        id: z.string().describe("Company id, e.g. 'co-001'"),
-      },
+  const fetch = support.wrapTool({
+    name: "fetch",
+    title: "Fetch company record",
+    description: "Fetch the full record for a company by the id returned from `search`.",
+    inputSchema: {
+      id: z.string().describe("Company id, e.g. 'co-001'"),
     },
-    async ({ id }) => {
+    handler: async ({ id }: { id: string }) => {
       const company = companiesById.get(id);
       if (!company) {
         throw new Error(`No company found with id "${id}"`);
@@ -132,37 +142,46 @@ export function createServer(): ServerInstallation {
         ],
       };
     },
-  );
+  });
+  server.registerTool(fetch.name, {
+    title: fetch.title,
+    description: fetch.description,
+    inputSchema: fetch.inputSchema,
+  }, fetch.handler);
 
   // --- General-purpose tools for Claude Desktop and other MCP clients ---
-  server.registerTool(
-    "list_companies",
-    {
-      title: "List companies",
-      description:
-        "List companies from the directory, optionally filtered by industry, a " +
-        "location substring, and/or a valuation range (in USD).",
-      inputSchema: {
-        industry: z
-          .enum(["fintech", "agtech", "martech", "femtech"])
-          .optional()
-          .describe("Restrict results to a single industry"),
-        location: z
-          .string()
-          .optional()
-          .describe("Case-insensitive substring match against the location field"),
-        minValuationUsd: z.number().nonnegative().optional(),
-        maxValuationUsd: z.number().nonnegative().optional(),
-        limit: z
-          .number()
-          .int()
-          .min(1)
-          .max(100)
-          .default(25)
-          .describe("Maximum number of companies to return (default 25, max 100)"),
-      },
+  const list_companies = support.wrapTool({
+    name: "list_companies",
+    title: "List companies",
+    description:
+      "List companies from the directory, optionally filtered by industry, a " +
+      "location substring, and/or a valuation range (in USD).",
+    inputSchema: {
+      industry: z
+        .enum(["fintech", "agtech", "martech", "femtech"])
+        .optional()
+        .describe("Restrict results to a single industry"),
+      location: z
+        .string()
+        .optional()
+        .describe("Case-insensitive substring match against the location field"),
+      minValuationUsd: z.number().nonnegative().optional(),
+      maxValuationUsd: z.number().nonnegative().optional(),
+      limit: z
+        .number()
+        .int()
+        .min(1)
+        .max(100)
+        .default(25)
+        .describe("Maximum number of companies to return (default 25, max 100)"),
     },
-    async ({ industry, location, minValuationUsd, maxValuationUsd, limit }) => {
+    handler: async ({ industry, location, minValuationUsd, maxValuationUsd, limit }: {
+      industry?: Industry;
+      location?: string;
+      minValuationUsd?: number;
+      maxValuationUsd?: number;
+      limit: number;
+    }) => {
       let results = companies;
 
       if (industry) {
@@ -198,18 +217,21 @@ export function createServer(): ServerInstallation {
         ],
       };
     },
-  );
+  });
+  server.registerTool(list_companies.name, {
+    title: list_companies.title,
+    description: list_companies.description,
+    inputSchema: list_companies.inputSchema,
+  }, list_companies.handler);
 
-  server.registerTool(
-    "get_company",
-    {
-      title: "Get company by id",
-      description: "Look up a single company record by its id (e.g. 'co-042').",
-      inputSchema: {
-        id: z.string(),
-      },
+  const get_company = support.wrapTool({
+    name: "get_company",
+    title: "Get company by id",
+    description: "Look up a single company record by its id (e.g. 'co-042').",
+    inputSchema: {
+      id: z.string(),
     },
-    async ({ id }) => {
+    handler: async ({ id }: { id: string }) => {
       const company = companiesById.get(id);
       if (!company) {
         return {
@@ -221,16 +243,19 @@ export function createServer(): ServerInstallation {
         content: [{ type: "text", text: JSON.stringify(company, null, 2) }],
       };
     },
-  );
+  });
+  server.registerTool(get_company.name, {
+    title: get_company.title,
+    description: get_company.description,
+    inputSchema: get_company.inputSchema,
+  }, get_company.handler);
 
-  server.registerTool(
-    "list_industries",
-    {
-      title: "List industries",
-      description: "List the industries represented in the company directory, with counts.",
-      inputSchema: {},
-    },
-    async () => {
+  const list_industries = support.wrapTool({
+    name: "list_industries",
+    title: "List industries",
+    description: "List the industries represented in the company directory, with counts.",
+    inputSchema: {},
+    handler: async () => {
       const counts = INDUSTRIES.map((industry) => ({
         industry,
         count: companies.filter((c) => c.industry === industry).length,
@@ -239,7 +264,12 @@ export function createServer(): ServerInstallation {
         content: [{ type: "text", text: JSON.stringify(counts, null, 2) }],
       };
     },
-  );
+  });
+  server.registerTool(list_industries.name, {
+    title: list_industries.title,
+    description: list_industries.description,
+    inputSchema: list_industries.inputSchema,
+  }, list_industries.handler);
 
   return { server };
 }
