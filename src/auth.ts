@@ -19,7 +19,10 @@ export function createTokenVerifier(key: JWTVerifyGetKey = jwks) {
       });
       if (typeof payload.sub !== "string" || !payload.sub) return { ok: false, reason: "invalid_token" };
       const scopes = typeof payload.scope === "string" ? payload.scope.split(/\s+/).filter(Boolean) : [];
-      if (!scopes.includes(requiredScope)) return { ok: false, reason: "insufficient_scope" };
+      if (!scopes.includes(requiredScope)) {
+        console.warn("MCP authentication rejected: required scope missing");
+        return { ok: false, reason: "insufficient_scope" };
+      }
       const email = payload[resourceUrl + "/email"];
       const verified = payload[resourceUrl + "/email_verified"];
       return { ok: true, authInfo: {
@@ -30,7 +33,15 @@ export function createTokenVerifier(key: JWTVerifyGetKey = jwks) {
           email_verified: verified === true,
         },
       }};
-    } catch { return { ok: false, reason: "invalid_token" }; }
+    } catch (error) {
+      // Only library error identifiers; never log the token or decoded claims.
+      const code = typeof error === "object" && error !== null && "code" in error
+        ? String(error.code) : "unknown";
+      const claim = typeof error === "object" && error !== null && "claim" in error
+        ? String(error.claim) : undefined;
+      console.warn("MCP token validation rejected", { code, claim });
+      return { ok: false, reason: "invalid_token" };
+    }
   };
 }
 export const verifyToken = createTokenVerifier();

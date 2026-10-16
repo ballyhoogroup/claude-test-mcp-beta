@@ -54,6 +54,16 @@ export function createApp(dependencies: AppDependencies = {}) {
     });
   });
 
+  app.use("/mcp", (req, res, next) => {
+    const knownMethods = new Set(["initialize", "notifications/initialized", "tools/list", "tools/call", "resources/list", "resources/templates/list", "resources/read", "ping"]);
+    const method = typeof req.body?.method === "string" && knownMethods.has(req.body.method)
+      ? req.body.method : "other";
+    res.on("finish", () => console.info("MCP request completed", {
+      httpMethod: req.method, rpcMethod: method, status: res.statusCode,
+    }));
+    next();
+  });
+
   app.use("/mcp", async (req, res, next) => {
     const match = /^Bearer ([^\s]+)$/i.exec(req.header("authorization") ?? "");
     const checked = match ? await checkToken(match[1]) : undefined;
