@@ -5,7 +5,9 @@ const originalFetch = globalThis.fetch;
 
 const { createApp } = await import("../dist/app.js");
 
-const app = createApp();
+const app = createApp({ verifyToken: async token => ({ ok: true, authInfo: {
+  token, clientId: "test-client", scopes: ["access:mcp"], extra: { sub: "auth0|test" },
+}}) });
 let server;
 let endpoint;
 
@@ -25,6 +27,7 @@ async function mcpRequest(body, sessionId) {
   const response = await originalFetch(endpoint, {
     method: "POST",
     headers: {
+      authorization: "Bearer test-token",
       accept: "application/json, text/event-stream",
       "content-type": "application/json",
       "mcp-protocol-version": "2025-03-26",
@@ -74,13 +77,14 @@ async function callTool(sessionId, id) {
 }
 
 test("company tools remain available after SDK removal", async () => {
-  for (const path of ["/.well-known/oauth-authorization-server", "/.well-known/oauth-protected-resource", "/.well-known/oauth-protected-resource/mcp"]) {
+  for (const path of ["/.well-known/oauth-protected-resource", "/.well-known/oauth-protected-resource/mcp"]) {
     const response = await originalFetch(new URL(path, endpoint));
-    assert.equal(response.status, 404);
+    assert.equal(response.status, 200);
+    assert.deepEqual((await response.json()).scopes_supported, ["access:mcp"]);
     assert.equal(response.headers.get("www-authenticate"), null);
   }
   const status = await originalFetch(new URL("/", endpoint));
-  assert.equal((await status.json()).authEnabled, false);
+  assert.equal((await status.json()).authEnabled, true);
   const session = await connect(1);
   try {
     const tools = await mcpRequest(
@@ -96,7 +100,7 @@ test("company tools remain available after SDK removal", async () => {
   } finally {
     const closed = await originalFetch(endpoint, {
       method: "DELETE",
-      headers: { "mcp-session-id": session, "mcp-protocol-version": "2025-03-26" },
+      headers: { authorization: "Bearer test-token", "mcp-session-id": session, "mcp-protocol-version": "2025-03-26" },
     });
     assert.equal(closed.status, 200);
   }

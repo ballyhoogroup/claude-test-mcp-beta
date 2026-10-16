@@ -71,8 +71,25 @@ This repo includes a [`render.yaml`](./render.yaml) blueprint.
 
 ## Authentication
 
-The beta currently runs without authentication. OAuth discovery and bearer-token
-validation are not enabled. Auth0 integration is planned as a separate step.
+The MCP requires Auth0 RS256 access tokens issued by
+`https://dev-6zanky8n50kbs3ri.us.auth0.com/`, with audience
+`https://pitch-fork-beta.onrender.com/mcp` and scope `access:mcp`.
+Set `AUTH0_ISSUER_BASE_URL` and `MCP_RESOURCE_URL` to override these deployment defaults.
+Missing or invalid tokens receive HTTP 401; missing scope receives HTTP 403.
+Sessions are bound to the authenticated subject.
+
+OAuth resource metadata is published at
+`/.well-known/oauth-protected-resource/mcp`. Auth0 handles login, client registration,
+and token issuance. Clients must be authorized for this API in Auth0; creating a
+scope alone does not grant it.
+
+The Post Login Action supplies namespaced claims
+`https://pitch-fork-beta.onrender.com/mcp/email` and
+`https://pitch-fork-beta.onrender.com/mcp/email_verified`. The server maps these
+from the validated token to `authInfo.extra.email` and `email_verified`, preserving
+verification only when the claim is boolean true. The Auth0 subject is retained
+as `extra.sub` and `extra.subject`. Within is not installed yet.
+New tools use the same server-wide `access:mcp` requirement.
 
 ## Connecting clients
 
@@ -82,7 +99,7 @@ validation are not enabled. Auth0 integration is planned as a separate step.
    MCP server).
 2. Enter your Render URL's `/mcp` endpoint, e.g.
    `https://<your-service-name>.onrender.com/mcp`.
-3. Choose **No authentication** for the current beta configuration.
+3. Choose **OAuth** and authorize the client for this API in Auth0.
 4. ChatGPT will discover `search` and `fetch` automatically.
 
 ### Claude Desktop
@@ -107,7 +124,7 @@ Claude Desktop only supports local/stdio servers, use the
 ### Any other MCP client
 
 Point any client that supports the Streamable HTTP transport at the `/mcp` URL.
-No authorization flow is required for the current beta configuration.
+Complete the Auth0 authorization flow and request the `access:mcp` scope.
 
 ## Notes
 
