@@ -107,6 +107,12 @@ test("Within tools register once and business tools retain Auth0 subject", async
       "support_end_session", "support_get_offer", "get_vendor_answer", "talk_to_vendor_agent"]) {
       assert.equal(names.filter(value => value === name).length, 1, name);
     }
+    assert.equal(names.length, 17, "only five business and twelve current Within tools");
+    for (const legacy of ["ask_company", "accept_invitation", "request_person", "leave_note", "decline_invitation"]) {
+      assert.ok(!names.includes(legacy), legacy + " must not be exposed");
+      const rejected = await mcpRequest({jsonrpc:"2.0",id:legacy,method:"tools/call",params:{name:legacy,arguments:{}}},session);
+      assert.ok(rejected.payload.error || rejected.payload.result?.isError, legacy + " must not be callable");
+    }
     const result = await callTool(session, 3);
     assert.equal(result.payload.result.isError, undefined);
     const industries = JSON.parse(result.payload.result.content[0].text);

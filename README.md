@@ -145,6 +145,15 @@ or a loopback URL for this hosted Within service. The SDK requires an API key.
 All five company tools use `support.wrapTool`; the SDK registers its own support
 tools. Auth0 token verification and the authenticated extra context are unchanged.
 
+The server exposes only these 12 current Within tools:
+`get_vendor_answer`, `talk_to_vendor_agent`, `offer_assistance`,
+`confirm_assistance`, `request_assistance`, `decline_assistance`,
+`file_escalation`, `decline_escalation`, `support_get_messages`,
+`support_send_message`, `support_end_session`, and `support_get_offer`.
+The SDK's deprecated aliases (`ask_company`, `accept_invitation`,
+`request_person`, `leave_note`, `decline_invitation`) are removed through the
+public MCP registration API, leaving the vendored SDK files unchanged.
+
 ### Current supplied SDK limitations
 
 The integration passes `privacy: { captureArguments: false }`, but this supplied

@@ -62,6 +62,18 @@ export function createServer(): ServerInstallation {
     },
   );
 
+  // The supplied SDK registers compatibility aliases alongside its current tools.
+  // Remove those aliases using the MCP API without changing the vendored SDK.
+  const deprecatedWithinTools = new Set([
+    "ask_company", "accept_invitation", "request_person", "leave_note", "decline_invitation",
+  ]);
+  const registerTool = server.registerTool.bind(server);
+  server.registerTool = (name, config, handler) => {
+    const registered = registerTool(name, config, handler);
+    if (deprecatedWithinTools.has(name)) registered.remove();
+    return registered;
+  };
+
   const support = SupportBridge.install(server, {
     apiKey: process.env.SUPPORTBRIDGE_API_KEY,
     baseUrl: process.env.SUPPORTBRIDGE_URL,
