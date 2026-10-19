@@ -1,4 +1,2 @@
 allowBuilds:
   esbuild: true
-minimumReleaseAgeExclude:
-  - '@getwithin/sdk@0.1.2'

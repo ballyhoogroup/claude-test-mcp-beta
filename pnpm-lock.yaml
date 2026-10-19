@@ -8,9 +8,6 @@ importers:
 
   .:
     dependencies:
-      '@getwithin/sdk':
-        specifier: ^0.1.2
-        version: 0.1.2(@modelcontextprotocol/sdk@1.30.0(zod@3.25.76))
       '@modelcontextprotocol/sdk':
         specifier: ^1.30.0
         version: 1.30.0(zod@3.25.76)
@@ -194,12 +191,6 @@ packages:
     engines: {node: '>=18'}
     cpu: [x64]
     os: [win32]
-
-  '@getwithin/sdk@0.1.2':
-    resolution: {integrity: sha512-0ax8ozFesuzivzRrfjiRuM6OrLaH0wqe4a8ds4m/1u8fBjgreQH15csVXQP+i44HQCleb2u1BjOLCpWzlWES5A==}
-    engines: {node: '>=20'}
-    peerDependencies:
-      '@modelcontextprotocol/sdk': '>=1.30.0'
 
   '@hono/node-server@2.1.1':
     resolution: {integrity: sha512-ELuehkj5VCBdgEw9zs+ivkKwyzzUCSQuE96YmiPvn1ECBoZCczbFXJLeEGMTYjphP6gydh4pHMqEYPVMYUVgQg==}
@@ -812,11 +803,6 @@ snapshots:
 
   '@esbuild/win32-x64@0.28.2':
     optional: true
-
-  '@getwithin/sdk@0.1.2(@modelcontextprotocol/sdk@1.30.0(zod@3.25.76))':
-    dependencies:
-      '@modelcontextprotocol/sdk': 1.30.0(zod@3.25.76)
-      zod: 3.25.76
 
   '@hono/node-server@2.1.1(hono@4.13.8)':
     dependencies:
