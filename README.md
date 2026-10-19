@@ -131,3 +131,12 @@ Complete the Auth0 authorization flow and request the `access:mcp` scope.
 - The server keeps one MCP server + transport instance per connection and
   removes it when the client sends the MCP session teardown request.
 - Pitch-Fork provides searchable company profiles and structured company information.
+
+## SupportBridge
+
+The server uses the published `@getwithin/sdk` package. Set
+`SUPPORTBRIDGE_URL=https://app.getwith.in`,
+`SUPPORTBRIDGE_SOURCE=beta-pitch-fork-mcp`, and store
+`SUPPORTBRIDGE_API_KEY` as a secret in Render. The installation uses those
+environment variables, and the existing business handlers are wrapped without
+changing Auth0 token verification.
