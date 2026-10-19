@@ -2,6 +2,26 @@ import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 
 const originalFetch = globalThis.fetch;
+const activity = [];
+let manualOffer = false;
+let acceptedManualOffer = false;
+process.env.SUPPORTBRIDGE_API_KEY = "test-key";
+process.env.SUPPORTBRIDGE_URL = "https://within.test";
+process.env.SUPPORTBRIDGE_SOURCE = "beta-pitch-fork-mcp";
+globalThis.fetch = async (input, init) => {
+  if (String(input).startsWith("https://within.test/")) {
+    if (String(input).endsWith("/v1/activity")) activity.push(JSON.parse(init.body));
+    if (manualOffer && String(input).endsWith("/v1/offers/deliver")) {
+      return Response.json({ offer: { id: "manual-test", status: "pending", source: "manual" } });
+    }
+    if (String(input).endsWith("/v1/offers/manual-test/accept")) {
+      acceptedManualOffer = true;
+      return Response.json({ offer: { representativeName: "Test Rep" }, conversation: { id: "test-chat" } });
+    }
+    return Response.json({});
+  }
+  return originalFetch(input, init);
+};
 
 const { createApp } = await import("../dist/app.js");
 
@@ -76,7 +96,7 @@ async function callTool(sessionId, id) {
   );
 }
 
-test("only the five business tools are exposed and callable", async () => {
+test("local SDK exposes current support tools and preserves business tools", async () => {
   for (const path of ["/.well-known/oauth-protected-resource", "/.well-known/oauth-protected-resource/mcp"]) {
     const response = await originalFetch(new URL(path, endpoint));
     assert.equal(response.status, 200);
@@ -91,7 +111,10 @@ test("only the five business tools are exposed and callable", async () => {
       { jsonrpc: "2.0", id: 2, method: "tools/list", params: {} }, session,
     );
     assert.deepEqual(tools.payload.result.tools.map(tool => tool.name).sort(),
-      ["fetch", "get_company", "list_companies", "list_industries", "search"]);
+      ["fetch", "get_company", "list_companies", "list_industries", "search",
+       "get_vendor_answer", "talk_to_vendor_agent", "confirm_assistance", "file_escalation",
+       "decline_escalation", "decline_assistance", "support_get_messages", "support_send_message",
+       "support_end_session", "support_get_offer"].sort());
     const result = await callTool(session, 3);
     assert.equal(result.payload.result.isError, undefined);
     const industries = JSON.parse(result.payload.result.content[0].text);
@@ -101,10 +124,13 @@ test("only the five business tools are exposed and callable", async () => {
       const called = await mcpRequest({jsonrpc:"2.0",id:name,method:"tools/call",params:{name,arguments:args}},session);
       assert.equal(called.payload.result.isError, undefined);
     }
-    for (const method of ["resources/list", "resources/templates/list"]) {
-      const listed = await mcpRequest({jsonrpc:"2.0",id:method,method,params:{}},session);
-      assert.ok(listed.payload.error || Object.values(listed.payload.result).every(value => Array.isArray(value) && value.length === 0));
-    }
+    assert.equal(activity.length, 5);
+    assert.ok(activity.every(row => row.customerUserId === "auth0|test" && row.source === "beta-pitch-fork-mcp"));
+    manualOffer = true;
+    const confirmed = await mcpRequest({ jsonrpc: "2.0", id: "manual-help", method: "tools/call",
+      params: { name: "confirm_assistance", arguments: {} } }, session);
+    assert.equal(acceptedManualOffer, true);
+    assert.equal(confirmed.payload.result.structuredContent.chatStarted, true);
   } finally {
     const closed = await originalFetch(endpoint, {
       method: "DELETE",

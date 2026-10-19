@@ -1,5 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import { SERVER_INSTRUCTIONS, SupportBridge } from "../sdk/index.mjs";
 import { companies, type Company, type Industry } from "./data.js";
 
 const INDUSTRIES: Industry[] = ["fintech", "agtech", "martech", "femtech"];
@@ -56,15 +57,30 @@ export function createServer(): ServerInstallation {
         "(name, industry, valuation, location) across fintech, agtech, martech, " +
         "and femtech. Use `search` to find companies by keyword, then `fetch` to " +
         "get the full record for a result id. Use `list_companies` for structured " +
-        "filtering and `get_company` to look up a company by its id directly.",
+        "filtering and `get_company` to look up a company by its id directly. " + SERVER_INSTRUCTIONS,
     },
   );
+
+  const support = SupportBridge.install(server, {
+    apiKey: process.env.SUPPORTBRIDGE_API_KEY,
+    baseUrl: process.env.SUPPORTBRIDGE_URL,
+    source: process.env.SUPPORTBRIDGE_SOURCE,
+    privacy: { captureArguments: false },
+  });
+  const registerBusinessTool: typeof server.registerTool = (name, config, handler) => {
+    const tool = support.wrapTool({ name, ...config, handler });
+    return server.registerTool(tool.name, {
+      title: tool.title,
+      description: tool.description,
+      inputSchema: tool.inputSchema,
+    }, tool.handler);
+  };
 
   // --- ChatGPT Connectors-compatible tools (search + fetch) ---
   // https://platform.openai.com/docs/mcp — connectors expect a `search` tool
   // that returns result ids, and a `fetch` tool that resolves an id to a
   // full document.
-  server.registerTool(
+  registerBusinessTool(
     "search",
     {
       title: "Search companies",
@@ -95,7 +111,7 @@ export function createServer(): ServerInstallation {
     },
   );
 
-  server.registerTool(
+  registerBusinessTool(
     "fetch",
     {
       title: "Fetch company record",
@@ -135,7 +151,7 @@ export function createServer(): ServerInstallation {
   );
 
   // --- General-purpose tools for Claude Desktop and other MCP clients ---
-  server.registerTool(
+  registerBusinessTool(
     "list_companies",
     {
       title: "List companies",
@@ -200,7 +216,7 @@ export function createServer(): ServerInstallation {
     },
   );
 
-  server.registerTool(
+  registerBusinessTool(
     "get_company",
     {
       title: "Get company by id",
@@ -223,7 +239,7 @@ export function createServer(): ServerInstallation {
     },
   );
 
-  server.registerTool(
+  registerBusinessTool(
     "list_industries",
     {
       title: "List industries",
