@@ -23,15 +23,10 @@ export function createTokenVerifier(key: JWTVerifyGetKey = jwks) {
         console.warn("MCP authentication rejected: required scope missing");
         return { ok: false, reason: "insufficient_scope" };
       }
-      const email = payload[resourceUrl + "/email"];
-      const verified = payload[resourceUrl + "/email_verified"];
       return { ok: true, authInfo: {
         token, clientId: typeof payload.azp === "string" ? payload.azp : typeof payload.client_id === "string" ? payload.client_id : "unknown-client",
         scopes, expiresAt: payload.exp, resource: new URL(resourceUrl),
-        extra: { sub: payload.sub, subject: payload.sub,
-          ...(typeof email === "string" && email ? { email } : {}),
-          email_verified: verified === true,
-        },
+        extra: payload,
       }};
     } catch (error) {
       // Only library error identifiers; never log the token or decoded claims.

@@ -13,17 +13,17 @@ async function token(claims={}) {
  return new SignJWT({scope:'access:mcp',...claims}).setProtectedHeader({alg:'RS256',kid:'test'})
  .setIssuer(issuer).setAudience(resourceUrl).setSubject('auth0|customer').setIssuedAt().setExpirationTime('5m').sign(privateKey);
 }
-test('valid tokens preserve email and the real verification boolean',async()=>{
+test('valid tokens preserve raw namespaced identity claims',async()=>{
  for(const value of [true,false,'true',undefined]) {
   const checked=await verifier(await token({[resourceUrl+'/email']:'customer@example.com',[resourceUrl+'/email_verified']:value}));
   assert.equal(checked.ok,true);
-  assert.equal(checked.authInfo.extra.email,'customer@example.com');
-  assert.equal(checked.authInfo.extra.email_verified,value===true);
+  assert.equal(checked.authInfo.extra[resourceUrl+'/email'],'customer@example.com');
+  assert.equal(checked.authInfo.extra[resourceUrl+'/email_verified'],value);
   assert.equal(checked.authInfo.extra.sub,'auth0|customer');
  }
  const absent=await verifier(await token());
  assert.equal(absent.authInfo.extra.email,undefined);
- assert.equal(absent.authInfo.extra.email_verified,false);
+ assert.equal(absent.authInfo.extra.email_verified,undefined);
 });
 test('reject invalid signatures, expiry, issuer, audience, missing expiry and missing scope',async()=>{
  const sign=(claims)=>new SignJWT(claims).setProtectedHeader({alg:'RS256',kid:'test'}).sign(privateKey);
@@ -55,7 +55,7 @@ test('HTTP auth protects every method and passes identity to MCP handlers',async
   const missingScope=await fetch(url,{headers:{authorization:`Bearer ${await token({scope:''})}`}});assert.equal(missingScope.status,403);
   await client.connect(transport);
   const identity=JSON.parse((await client.callTool({name:'identity',arguments:{}})).content[0].text);
-  assert.equal(identity.email,'customer@example.com');assert.equal(identity.email_verified,true);
+  assert.equal(identity[resourceUrl+'/email'],'customer@example.com');assert.equal(identity[resourceUrl+'/email_verified'],true);
   const other=new SignJWT({scope:'access:mcp'}).setProtectedHeader({alg:'RS256',kid:'test'}).setIssuer(issuer).setAudience(resourceUrl).setSubject('other').setIssuedAt().setExpirationTime('5m');
   const cross=await fetch(url,{method:'DELETE',headers:{authorization:`Bearer ${await other.sign(privateKey)}`,'mcp-session-id':transport.sessionId}});
   assert.equal(cross.status,403);

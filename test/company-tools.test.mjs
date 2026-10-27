@@ -2,11 +2,24 @@ import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 
 const originalFetch = globalThis.fetch;
+const namespace = "https://pitch-fork-beta.onrender.com/mcp";
+const activity = [];
+let claims = { sub: "auth0|test", [namespace + "/email"]: "Customer@Example.COM",
+  [namespace + "/email_verified"]: true, [namespace + "/sub"]: "wrong-subject" };
+process.env.SUPPORTBRIDGE_API_KEY = "test-key";
+process.env.SUPPORTBRIDGE_URL = "https://within.test";
+globalThis.fetch = async (input, init) => {
+  if (String(input).startsWith("https://within.test/")) {
+    if (String(input).endsWith("/v1/activity")) activity.push(JSON.parse(init.body));
+    return Response.json({});
+  }
+  return originalFetch(input, init);
+};
 
 const { createApp } = await import("../dist/app.js");
 
 const app = createApp({ verifyToken: async token => ({ ok: true, authInfo: {
-  token, clientId: "test-client", scopes: ["access:mcp"], extra: { sub: "auth0|test" },
+  token, clientId: "test-client", scopes: ["access:mcp"], extra: claims,
 }}) });
 let server;
 let endpoint;
@@ -76,7 +89,7 @@ async function callTool(sessionId, id) {
   );
 }
 
-test("only the five business tools are exposed and callable", async () => {
+test("SDK preserves business tools and records verified namespaced email", async () => {
   for (const path of ["/.well-known/oauth-protected-resource", "/.well-known/oauth-protected-resource/mcp"]) {
     const response = await originalFetch(new URL(path, endpoint));
     assert.equal(response.status, 200);
@@ -91,7 +104,8 @@ test("only the five business tools are exposed and callable", async () => {
       { jsonrpc: "2.0", id: 2, method: "tools/list", params: {} }, session,
     );
     assert.deepEqual(tools.payload.result.tools.map(tool => tool.name).sort(),
-      ["fetch", "get_company", "list_companies", "list_industries", "search"]);
+      ["fetch", "get_company", "list_companies", "list_industries", "search",
+        "get_vendor_answer", "confirm_assistance", "decline_assistance"].sort());
     const result = await callTool(session, 3);
     assert.equal(result.payload.result.isError, undefined);
     const industries = JSON.parse(result.payload.result.content[0].text);
@@ -101,15 +115,31 @@ test("only the five business tools are exposed and callable", async () => {
       const called = await mcpRequest({jsonrpc:"2.0",id:name,method:"tools/call",params:{name,arguments:args}},session);
       assert.equal(called.payload.result.isError, undefined);
     }
-    for (const method of ["resources/list", "resources/templates/list"]) {
-      const listed = await mcpRequest({jsonrpc:"2.0",id:method,method,params:{}},session);
-      assert.ok(listed.payload.error || Object.values(listed.payload.result).every(value => Array.isArray(value) && value.length === 0));
-    }
+    assert.equal(activity.length, 5);
+    assert.ok(activity.every(row => row.customerUserId === "customer@example.com" &&
+      row.authUserId === "auth0|test" && row.source === "beta-pitch-fork-mcp" && row.sdkVersion === "0.2.0"));
   } finally {
     const closed = await originalFetch(endpoint, {
       method: "DELETE",
       headers: { authorization: "Bearer test-token", "mcp-session-id": session, "mcp-protocol-version": "2025-03-26" },
     });
     assert.equal(closed.status, 200);
+  }
+});
+
+test("tool activity accepts string verification and retains bare sub for unverified email", async () => {
+  for (const verified of ["true", false]) {
+    claims = { sub: "auth0|test", [namespace + "/sub"]: "wrong-subject",
+      [namespace + "/email"]: "Customer@Example.COM", [namespace + "/email_verified"]: verified };
+    const session = await connect("identity-" + verified);
+    try {
+      await callTool(session, "identity-call");
+      const row = activity.at(-1);
+      assert.equal(row.customerUserId, verified === "true" ? "customer@example.com" : "auth0|test");
+      assert.equal(row.authUserId, "auth0|test");
+    } finally {
+      await originalFetch(endpoint, {method: "DELETE", headers: {
+        authorization: "Bearer test-token", "mcp-session-id": session, "mcp-protocol-version": "2025-03-26" }});
+    }
   }
 });

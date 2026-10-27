@@ -79,7 +79,7 @@ Missing or invalid tokens receive 401; insufficient scope receives 403.
 Sessions are bound to the authenticated subject. Public OAuth resource metadata
 is available at `/.well-known/oauth-protected-resource/mcp` and
 `/.well-known/oauth-protected-resource`.
-Verified namespaced email claims are passed into the tool-call identity context.
+Verified access-token claims are passed unchanged in `authInfo.extra`.
 
 ## Connecting clients
 
@@ -122,3 +122,14 @@ Complete authorization and request the `access:mcp` scope.
   removes it when the client sends the MCP session teardown request.
 - Pitch-Fork provides searchable company profiles and structured company information.
 
+## SupportBridge
+
+Local SDK version 0.2.0 is copied in full from `supportbridge-sdk-fork` commit
+`a6527cafa3cd778242ac3e2a2b09f9c62f1e60c1`: `sdk/index.mjs`, `activity.mjs`,
+and `intents.mjs`. No npm SDK package is used.
+
+Configure `SUPPORTBRIDGE_API_KEY` as a Render secret and
+`SUPPORTBRIDGE_URL=https://app.getwith.in`. The source is `beta-pitch-fork-mcp`.
+The SDK reads identity claims using namespace `https://pitch-fork-beta.onrender.com/mcp`;
+the server does not rename or select email/name claims or provide a custom identify function.
+Verified email becomes the customer user ID; the bare subject remains the auth user ID.
