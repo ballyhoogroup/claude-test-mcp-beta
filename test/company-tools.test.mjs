@@ -25,9 +25,7 @@ globalThis.fetch = async (input, init) => {
 
 const { createApp } = await import("../dist/app.js");
 
-const app = createApp({ verifyToken: async token => ({ ok: true, authInfo: {
-  token, clientId: "test-client", scopes: ["access:mcp"], extra: { sub: "auth0|test" },
-}}) });
+const app = createApp();
 let server;
 let endpoint;
 
@@ -47,7 +45,6 @@ async function mcpRequest(body, sessionId) {
   const response = await originalFetch(endpoint, {
     method: "POST",
     headers: {
-      authorization: "Bearer test-token",
       accept: "application/json, text/event-stream",
       "content-type": "application/json",
       "mcp-protocol-version": "2025-03-26",
@@ -99,12 +96,11 @@ async function callTool(sessionId, id) {
 test("local SDK exposes current support tools and preserves business tools", async () => {
   for (const path of ["/.well-known/oauth-protected-resource", "/.well-known/oauth-protected-resource/mcp"]) {
     const response = await originalFetch(new URL(path, endpoint));
-    assert.equal(response.status, 200);
-    assert.deepEqual((await response.json()).scopes_supported, ["access:mcp"]);
+    assert.equal(response.status, 404);
     assert.equal(response.headers.get("www-authenticate"), null);
   }
   const status = await originalFetch(new URL("/", endpoint));
-  assert.equal((await status.json()).authEnabled, true);
+  assert.equal((await status.json()).authEnabled, false);
   const session = await connect(1);
   try {
     const tools = await mcpRequest(
@@ -125,7 +121,7 @@ test("local SDK exposes current support tools and preserves business tools", asy
       assert.equal(called.payload.result.isError, undefined);
     }
     assert.equal(activity.length, 5);
-    assert.ok(activity.every(row => row.customerUserId === "auth0|test" && row.source === "beta-pitch-fork-mcp"));
+    assert.ok(activity.every(row => !row.authUserId && row.source === "beta-pitch-fork-mcp"));
     manualOffer = true;
     const confirmed = await mcpRequest({ jsonrpc: "2.0", id: "manual-help", method: "tools/call",
       params: { name: "confirm_assistance", arguments: {} } }, session);
@@ -134,7 +130,7 @@ test("local SDK exposes current support tools and preserves business tools", asy
   } finally {
     const closed = await originalFetch(endpoint, {
       method: "DELETE",
-      headers: { authorization: "Bearer test-token", "mcp-session-id": session, "mcp-protocol-version": "2025-03-26" },
+      headers: { "mcp-session-id": session, "mcp-protocol-version": "2025-03-26" },
     });
     assert.equal(closed.status, 200);
   }
