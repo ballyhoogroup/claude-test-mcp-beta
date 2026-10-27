@@ -1,19 +1,24 @@
 import express from "express";
+import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
+import { issuer, resourceUrl, metadataUrl, requiredScope, verifyToken, type TokenCheck } from "./auth.js";
 import { randomUUID } from "node:crypto";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { createServer, type ServerInstallation } from "./server.js";
 
 export interface AppDependencies {
+  verifyToken?: (token: string) => Promise<TokenCheck>;
   serverFactory?: () => ServerInstallation;
 }
 
 interface SessionInstallation extends ServerInstallation {
   transport: StreamableHTTPServerTransport;
+  owner: string;
 }
 
 export function createApp(dependencies: AppDependencies = {}) {
   const app = express();
+  const checkToken = dependencies.verifyToken ?? verifyToken;
   const serverFactory = dependencies.serverFactory ?? createServer;
   const sessions = new Map<string, SessionInstallation>();
 
@@ -25,7 +30,7 @@ export function createApp(dependencies: AppDependencies = {}) {
       "Access-Control-Allow-Headers",
       "Content-Type, Authorization, Mcp-Session-Id, MCP-Protocol-Version, Last-Event-ID",
     );
-    res.header("Access-Control-Expose-Headers", "Mcp-Session-Id");
+    res.header("Access-Control-Expose-Headers", "WWW-Authenticate, Mcp-Session-Id");
     if (req.method === "OPTIONS") {
       res.sendStatus(204);
       return;
@@ -38,11 +43,16 @@ export function createApp(dependencies: AppDependencies = {}) {
       name: "Pitch-Fork",
       status: "ok",
       mcpEndpoint: "/mcp",
-      authEnabled: false,
+      authEnabled: true,
     });
   });
   app.get("/healthz", (_req, res) => res.status(200).send("ok"));
 
+  app.get(["/.well-known/oauth-protected-resource", "/.well-known/oauth-protected-resource/mcp"], (_req, res) => {
+    res.set("Cache-Control", "public, max-age=300").json({
+      resource: resourceUrl, authorization_servers: [issuer], scopes_supported: [requiredScope], bearer_methods_supported: ["header"],
+    });
+  });
 
   app.use("/mcp", (req, res, next) => {
     const knownMethods = new Set(["initialize", "notifications/initialized", "tools/list", "tools/call", "resources/list", "resources/templates/list", "resources/read", "ping"]);
@@ -54,6 +64,26 @@ export function createApp(dependencies: AppDependencies = {}) {
     next();
   });
 
+  app.use("/mcp", async (req, res, next) => {
+    const match = /^Bearer ([^\s]+)$/i.exec(req.header("authorization") ?? "");
+    const checked = match ? await checkToken(match[1]) : undefined;
+    if (!checked?.ok) {
+      const insufficient = checked?.reason === "insufficient_scope";
+      res.status(insufficient ? 403 : 401).set("WWW-Authenticate",
+        `Bearer resource_metadata="${metadataUrl}", scope="${requiredScope}"` +
+        (checked ? `, error="${checked.reason}"` : ""),
+      ).json({ error: checked?.reason ?? "missing_bearer_token" });
+      return;
+    }
+    const owner = String(checked.authInfo.extra?.sub);
+    const sessionId = req.header("mcp-session-id");
+    if (sessionId && sessions.has(sessionId) && sessions.get(sessionId)!.owner !== owner) {
+      res.status(403).json({ error: "session_owner_mismatch" });
+      return;
+    }
+    (req as typeof req & { auth: AuthInfo }).auth = checked.authInfo;
+    next();
+  });
 
   app.post("/mcp", async (req, res) => {
     try {
@@ -62,17 +92,18 @@ export function createApp(dependencies: AppDependencies = {}) {
 
       if (!installation && !requestedSessionId && isInitializeRequest(req.body)) {
         const { server } = serverFactory();
+        const owner = String((req as typeof req & { auth: AuthInfo }).auth.extra?.sub);
         const transport = new StreamableHTTPServerTransport({
           sessionIdGenerator: randomUUID,
           onsessioninitialized: sessionId => {
-            sessions.set(sessionId, { server, transport });
+            sessions.set(sessionId, { server, transport, owner });
           },
         });
         transport.onclose = () => {
           const sessionId = transport.sessionId;
           if (sessionId) sessions.delete(sessionId);
         };
-        installation = { server, transport };
+        installation = { server, transport, owner };
         await server.connect(transport);
       }
 

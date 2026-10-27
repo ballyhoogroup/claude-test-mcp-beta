@@ -71,8 +71,15 @@ This repo includes a [`render.yaml`](./render.yaml) blueprint.
 
 ## Authentication
 
-The MCP is publicly accessible without sign-in or bearer tokens. OAuth discovery
-metadata is not published. Sessions use randomly generated MCP session IDs.
+The MCP requires RS256 access tokens from
+`https://dev-6zanky8n50kbs3ri.us.auth0.com/`, with audience
+`https://pitch-fork-beta.onrender.com/mcp` and scope `access:mcp`.
+Configure these using `AUTH0_ISSUER_BASE_URL` and `MCP_RESOURCE_URL`.
+Missing or invalid tokens receive 401; insufficient scope receives 403.
+Sessions are bound to the authenticated subject. Public OAuth resource metadata
+is available at `/.well-known/oauth-protected-resource/mcp` and
+`/.well-known/oauth-protected-resource`.
+Verified namespaced email claims are passed into the tool-call identity context.
 
 ## Connecting clients
 
@@ -82,7 +89,7 @@ metadata is not published. Sessions use randomly generated MCP session IDs.
    MCP server).
 2. Enter your Render URL's `/mcp` endpoint, e.g.
    `https://<your-service-name>.onrender.com/mcp`.
-3. Choose **No authentication** / **No sign in**.
+3. Choose **OAuth** and sign in with the configured identity provider.
 4. ChatGPT will discover `search` and `fetch` automatically.
 
 ### Claude Desktop
@@ -107,7 +114,7 @@ Claude Desktop only supports local/stdio servers, use the
 ### Any other MCP client
 
 Point any client that supports the Streamable HTTP transport at the `/mcp` URL.
-No authorization flow or access token is required.
+Complete authorization and request the `access:mcp` scope.
 
 ## Notes
 
