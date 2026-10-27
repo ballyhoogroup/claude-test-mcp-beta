@@ -10,9 +10,3 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 22.22.2
-      - key: SUPPORTBRIDGE_URL
-        value: https://app.getwith.in
-      - key: SUPPORTBRIDGE_SOURCE
-        value: beta-pitch-fork-mcp
-      - key: SUPPORTBRIDGE_API_KEY
-        sync: false

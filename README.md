@@ -73,7 +73,6 @@ This repo includes a [`render.yaml`](./render.yaml) blueprint.
 
 The MCP is publicly accessible without sign-in or bearer tokens. OAuth discovery
 metadata is not published. Sessions use randomly generated MCP session IDs.
-No authenticated user email or subject is provided to SupportBridge.
 
 ## Connecting clients
 
@@ -116,12 +115,3 @@ No authorization flow or access token is required.
   removes it when the client sends the MCP session teardown request.
 - Pitch-Fork provides searchable company profiles and structured company information.
 
-## SupportBridge
-
-The local SDK files `sdk/index.mjs`, `activity.mjs`, and `intents.mjs` are copied
-from `supportbridge-sdk-fork` commit `ba6cdadf582d69d0ab0f6fcc1fc96bb6a1e87148`.
-No npm SDK package is required. Keep their relative layout when updating them.
-Set `SUPPORTBRIDGE_URL=https://app.getwith.in`,
-`SUPPORTBRIDGE_SOURCE=beta-pitch-fork-mcp`, and store this company's API key in
-Render as `SUPPORTBRIDGE_API_KEY`. Calls use anonymous MCP session identity.
-Accept help through `confirm_assistance`; omit the offer ID to accept a manual offer.
