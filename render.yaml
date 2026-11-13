@@ -14,9 +14,3 @@ services:
         value: https://dev-6zanky8n50kbs3ri.us.auth0.com/
       - key: MCP_RESOURCE_URL
         value: https://pitch-fork-beta.onrender.com/mcp
-      - key: SUPPORTBRIDGE_URL
-        value: https://app.getwith.in
-      - key: SUPPORTBRIDGE_SOURCE
-        value: beta-pitch-fork-mcp
-      - key: SUPPORTBRIDGE_API_KEY
-        sync: false

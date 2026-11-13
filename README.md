@@ -122,14 +122,18 @@ Complete authorization and request the `access:mcp` scope.
   removes it when the client sends the MCP session teardown request.
 - Pitch-Fork provides searchable company profiles and structured company information.
 
-## SupportBridge
+## Baton analytics
 
-Local SDK version 0.2.0 is copied in full from `supportbridge-sdk-fork` commit
-`a6527cafa3cd778242ac3e2a2b09f9c62f1e60c1`: `sdk/index.mjs`, `activity.mjs`,
-and `intents.mjs`. No npm SDK package is used.
+`src/server.ts` creates one shared Baton client and wraps each MCP session's server
+before tools are registered. The publishable server key ships in source. Capture
+settings use SDK defaults, including full tool results, and can be changed in the
+Baton Console without a redeploy. Agent reports are enabled.
 
-Configure `SUPPORTBRIDGE_API_KEY` as a Render secret and
-`SUPPORTBRIDGE_URL=https://app.getwith.in`. The source is `beta-pitch-fork-mcp`.
-The SDK reads identity claims using namespace `https://pitch-fork-beta.onrender.com/mcp`;
-the server does not rename or select email/name claims or provide a custom identify function.
-Verified email becomes the customer user ID; the bare subject remains the auth user ID.
+Caller identification uses the validated OAuth subject, with the full email address
+from the server's identity claims as the display name, falling back to the person's
+name. Only verified authentication context is used.
+
+Set `BATON_DISABLED=1` in the hosted server's environment to disable Baton entirely.
+The automated tests set this switch to keep fixture events out of analytics.
+The server currently has no graceful shutdown handler; if one is added, call
+`await baton.aclose()` after the HTTP listener stops accepting requests.
