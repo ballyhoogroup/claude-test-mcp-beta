@@ -1,9 +1,27 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { createBaton, principalFromOAuthSub } from "@goodtiming/baton-sdk";
 import { z } from "zod";
-import { SERVER_INSTRUCTIONS, SupportBridge } from "../sdk/index.mjs";
 import { companies, type Company, type Industry } from "./data.js";
 
 const INDUSTRIES: Industry[] = ["fintech", "agtech", "martech", "femtech"];
+
+export const baton = createBaton({
+  dsn: "https://baton_pk_PqdwGUi5j3BsIfdi8xUgCYDjWo29ZYHcP1U7xOE8Oxk@baton.goodtiming.ai/ten_d7b25761/srv-d7f104f6",
+  settings: "console",
+  reportMode: "on",
+  resolvePrincipal: (context) => {
+    const principal = principalFromOAuthSub(context);
+    if (!principal) return null;
+    const claims = context.authInfo?.extra;
+    const namespace = "https://pitch-fork-beta.onrender.com/mcp";
+    const displayName = claims?.[`${namespace}/email`] ?? claims?.email
+      ?? claims?.[`${namespace}/name`] ?? claims?.name;
+    return {
+      ...principal,
+      ...(typeof displayName === "string" ? { displayName } : {}),
+    };
+  },
+});
 
 const companiesById = new Map(companies.map((c) => [c.id, c]));
 
@@ -57,31 +75,17 @@ export function createServer(): ServerInstallation {
         "(name, industry, valuation, location) across fintech, agtech, martech, " +
         "and femtech. Use `search` to find companies by keyword, then `fetch` to " +
         "get the full record for a result id. Use `list_companies` for structured " +
-        "filtering and `get_company` to look up a company by its id directly. " + SERVER_INSTRUCTIONS,
+        "filtering and `get_company` to look up a company by its id directly.",
     },
   );
 
-  const support = SupportBridge.install(server, {
-    apiKey: process.env.SUPPORTBRIDGE_API_KEY,
-    baseUrl: process.env.SUPPORTBRIDGE_URL,
-    source: "beta-pitch-fork-mcp",
-    privacy: { captureArguments: false },
-    identityClaimNamespace: "https://pitch-fork-beta.onrender.com/mcp",
-  });
-  const registerBusinessTool: typeof server.registerTool = (name, config, handler) => {
-    const tool = support.wrapTool({ name, ...config, handler });
-    return server.registerTool(tool.name, {
-      title: tool.title,
-      description: tool.description,
-      inputSchema: tool.inputSchema,
-    }, tool.handler);
-  };
+  baton.wrap(server);
 
   // --- ChatGPT Connectors-compatible tools (search + fetch) ---
   // https://platform.openai.com/docs/mcp — connectors expect a `search` tool
   // that returns result ids, and a `fetch` tool that resolves an id to a
   // full document.
-  registerBusinessTool(
+  server.registerTool(
     "search",
     {
       title: "Search companies",
@@ -112,7 +116,7 @@ export function createServer(): ServerInstallation {
     },
   );
 
-  registerBusinessTool(
+  server.registerTool(
     "fetch",
     {
       title: "Fetch company record",
@@ -152,7 +156,7 @@ export function createServer(): ServerInstallation {
   );
 
   // --- General-purpose tools for Claude Desktop and other MCP clients ---
-  registerBusinessTool(
+  server.registerTool(
     "list_companies",
     {
       title: "List companies",
@@ -217,7 +221,7 @@ export function createServer(): ServerInstallation {
     },
   );
 
-  registerBusinessTool(
+  server.registerTool(
     "get_company",
     {
       title: "Get company by id",
@@ -240,7 +244,7 @@ export function createServer(): ServerInstallation {
     },
   );
 
-  registerBusinessTool(
+  server.registerTool(
     "list_industries",
     {
       title: "List industries",

@@ -2,10 +2,13 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { generateKeyPair, exportJWK, createLocalJWKSet, SignJWT } from 'jose';
 import { createTokenVerifier, issuer, resourceUrl } from '../dist/auth.js';
-import { createApp } from '../dist/app.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+
+// Keep fixture calls out of the production analytics workspace.
+process.env.BATON_DISABLED = '1';
+const { createApp } = await import('../dist/app.js');
 
 const {privateKey,publicKey}=await generateKeyPair('RS256');
 const verifier=createTokenVerifier(createLocalJWKSet({keys:[{...await exportJWK(publicKey),kid:'test',alg:'RS256'}]}));
